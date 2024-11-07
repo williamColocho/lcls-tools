@@ -252,7 +252,7 @@ def get_expected_energy_gain(pvdata, region, beam_path):
     else:
         previous_region = "L" + str(int(region[1]) - 1)
     expected_gain = pvdata[engy_meas[region]] - pvdata[engy_meas[previous_region]]
-    return expected_gain
+    return 1E9 * expected_gain
 
 
 def update_energy_gain_sc(tao, pvdata, region, mdl_obj):
@@ -261,9 +261,14 @@ def update_energy_gain_sc(tao, pvdata, region, mdl_obj):
     calculates a fudge and modifies model's cavity amplitudes and phases
     """
     expected_gain = get_expected_energy_gain(pvdata, region, mdl_obj.beam_path)
-    cavities = tao.lat_list(f"LCAV::BEG{region}B:END{region}B", "ele.name")
-    for indx, cav in enumerate(cavities):
-        cavities[indx] = cav.split("#")[0]
+    cavities_all = tao.lat_list(f"LCAV::BEG{region}B:END{region}B", "ele.name")
+    cavities = []
+    for indx, cav in enumerate(cavities_all):
+        cav_name = cav.split("#")[0]
+        if cav_name not in cavities:
+            cavities.append(cav_name)
+            
+            
     cavities = list(set(cavities))
     devices = [tao.ele_head(element)["alias"] for element in cavities]
     if mdl_obj.data_source == "ACT":
@@ -295,19 +300,23 @@ def update_energy_gain_sc(tao, pvdata, region, mdl_obj):
     print(region_e_tot)
 
 
-def update_energy_gain_cu(tao, pvdata, mdl_obj):
+def update_energy_gain_cu(tao, pvdata, region, mdl_obj):
     """
     Updates Cu Linac energy gain profile based on bending magnets,
     calculates a fudge and modifies model's cavity amplitudes and phases
     """
-    expected_gain = get_expected_energy_gain(mdl_obj.region)
+    expected_gain = get_expected_energy_gain(pvdata, region, mdl_obj.beam_path)
     init_cmds = ["veto dat *", "veto var *"]
-    if mdl_obj.region == "L2":
-        tao.cmd(f"set dat BC1.energy[2]|meas = {expected_gain} ")
-        optimize_cmds = init_cmds + ["use dat BC2.energy[1]",
+    if region == "L2":
+        l1_energy = tao.ele_gen_attribs('BC1CBEG')['E_TOT']
+        expected_energy = l1_energy +  expected_gain
+        tao.cmd(f"set dat BC2.energy[2]|meas = {expected_energy} ")
+        optimize_cmds = init_cmds + ["use dat BC2.energy[2]",
                                      "use var linac_fudge[2]"]
-    if mdl_obj.region == "L3":
-        tao.cmd(f"set dat L3[2]|meas ={expected_gain} ")
+    if region == "L3":
+        l2_energy = tao.ele_gen_attribs('BC2CBEG')['E_TOT']
+        expected_energy = l2_energy +  expected_gain
+        tao.cmd(f"set dat L3[2]|meas ={expected_energy} ")
         optimize_cmds = init_cmds + ["use dat L3.energy[2]",
                                      "use var linac_fudge[3]"]
     tao.cmds(optimize_cmds)
