@@ -267,8 +267,6 @@ def update_energy_gain_sc(tao, pvdata, region, mdl_obj):
         cav_name = cav.split("#")[0]
         if cav_name not in cavities:
             cavities.append(cav_name)
-            
-            
     cavities = list(set(cavities))
     devices = [tao.ele_head(element)["alias"] for element in cavities]
     if mdl_obj.data_source == "ACT":
@@ -309,13 +307,13 @@ def update_energy_gain_cu(tao, pvdata, region, mdl_obj):
     init_cmds = ["veto dat *", "veto var *"]
     if region == "L2":
         l1_energy = tao.ele_gen_attribs('BC1CBEG')['E_TOT']
-        expected_energy = l1_energy +  expected_gain
+        expected_energy = l1_energy + expected_gain
         tao.cmd(f"set dat BC2.energy[2]|meas = {expected_energy} ")
         optimize_cmds = init_cmds + ["use dat BC2.energy[2]",
                                      "use var linac_fudge[2]"]
     if region == "L3":
         l2_energy = tao.ele_gen_attribs('BC2CBEG')['E_TOT']
-        expected_energy = l2_energy +  expected_gain
+        expected_energy = l2_energy + expected_gain
         tao.cmd(f"set dat L3[2]|meas ={expected_energy} ")
         optimize_cmds = init_cmds + ["use dat L3.energy[2]",
                                      "use var linac_fudge[3]"]
